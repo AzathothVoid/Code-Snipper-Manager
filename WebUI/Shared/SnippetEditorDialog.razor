@@ -1,0 +1,80 @@
+﻿@inject IMediator Mediator
+@inject IMapper AutoMapper
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inherits MudComponentBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" Model="Model" Validated="@(e => { })">
+            <MudText Typo="Typo.h5">@(_isEdit ? "Edit Snippet" : "Create Snippet")</MudText>
+
+            <MudTextField Label="Title" @bind-Value="Model.Title" Required="true" For="@(()=>Model.Title)" />
+            <MudTextField Label="Language" @bind-Value="Model.Language" HelperText="e.g. csharp, javascript" />
+            <MudTextField Label="Tags" @bind-Value="Model.Tags" HelperText="comma-separated" />
+            <MudTextField Label="Description" @bind-Value="Model.Description" Lines="3" />
+
+            <MudText Typo="Typo.subtitle2" Class="mt-2">Code</MudText>
+            <MudTextField T="string" @bind-Value="Model.Code" Lines="12" TextWrapping="TextWrapping.NoWrap" Placeholder="// paste code here" />
+
+            <MudStack Row="true" Class="mt-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSubmit">Save</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public bool IsEdit { get; set; } = false;
+    [Parameter] public Guid? SnippetId { get; set; }
+
+    private MudForm? _form;
+    private CreateSnippetDto Model = new();
+    private bool _isEdit = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isEdit = IsEdit;
+        if (_isEdit && SnippetId.HasValue)
+        {
+            var data = await Mediator.Send(new GetSnippetDetailsQuery(SnippetId.Value)); // adapt
+            if (data == null) { Snackbar.Add("Snippet not found", Severity.Error); MudDialog.Cancel(); return; }
+
+            // map to create DTO for editing
+            Model = new SnippetCreateDto
+            {
+                Title = data.Title,
+                Description = data.Description,
+                Language = data.Language,
+                Code = data.Code,
+                Tags = data.Tags,
+                IsPublic = data.IsPublic,
+                OwnerId = data.OwnerId
+            };
+        }
+    }
+
+    async Task OnSubmit()
+    {
+        await _form?.Validate();
+
+        if (_isEdit && SnippetId.HasValue)
+        {
+            var UpdateModel = AutoMapper.Map<UpdateSnippetDto>(Model);
+            var cmd = new UpdateSnippetCommand() {Id = SnippetId.Value, snippetDto = UpdateModel};
+            await Mediator.Send(cmd);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            var cmd = new CreateSnippetCommand(){snippetDto = Model};
+            await Mediator.Send(cmd);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

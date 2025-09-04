@@ -7,9 +7,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Application.Features.Snippet.Requests.Queries
+namespace Application.Features.Snippets.Requests.Queries
 {
-    public class GetSnippetListQuery : IRequest<CustomQueryResponse<List<SnippetDto>>>
+    public class GetSnippetDetailsQuery : IRequest<CustomQueryResponse<SnippetDto>>
     {
+        public Guid Id { get; set; }
     }
 }

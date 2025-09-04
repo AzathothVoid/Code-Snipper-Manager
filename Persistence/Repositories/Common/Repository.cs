@@ -1,4 +1,6 @@
 ﻿using Application.Contracts.Persistence.Common;
+using Domain.Entities.Common;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,36 +9,62 @@ using System.Threading.Tasks;
 
 namespace Persistence.Repositories.Common
 {
-    public class Repository<T>: IRepository<T> where T : class
+    public class Repository<T>: IRepository<T> where T : BaseEntity
     {
-        public Task<T> AddAsync(T entity)
+        private readonly CodeSnipperManagerDbContext _dbContext;
+        private readonly DbSet<T> _dbSet;
+
+        public Repository(CodeSnipperManagerDbContext dbContext)
         {
-            throw new NotImplementedException();
+            _dbContext = dbContext;
+            _dbSet = _dbContext.Set<T>();
         }
 
-        public Task DeleteAsync(T entity)
+        public async Task<T> AddAsync(T entity)
         {
-            throw new NotImplementedException();
+            await _dbSet.AddAsync(entity);
+            await _dbContext.SaveChangesAsync();
+            return entity;
         }
 
-        public Task<T> Exists(T entity)
+        public async Task DeleteAsync(T entity)
         {
-            throw new NotImplementedException();
+            _dbSet.Remove(entity);
+            await _dbContext.SaveChangesAsync();
         }
 
-        public Task<IReadOnlyList<T>> GetAllAsync()
+        public async Task DeleteAsync(Guid id, CancellationToken ct = default)
         {
-            throw new NotImplementedException();
+            var entity = await _dbSet.FindAsync(new object[] { id }, ct);
+
+            if (entity == null)
+                return;
+
+            _dbSet.Remove(entity);
+            await _dbContext.SaveChangesAsync();
         }
 
-        public Task<T?> GetByIdAsync(int id)
+        public async Task<T> ExistsAsync(T entity)
         {
-            throw new NotImplementedException();
+            var exists = await _dbSet.ContainsAsync(entity);
+            return exists ? entity : null!;
         }
 
-        public Task<T> UpdateAsync(T entity)
+        public async Task<IReadOnlyList<T>> GetAllAsync()
         {
-            throw new NotImplementedException();
+            return await _dbSet.ToListAsync();
+        }
+
+        public async Task<T?> GetByIdAsync(Guid id)
+        {
+            return await _dbSet.AsNoTracking().FirstOrDefaultAsync((s => s.Id == id));
+        }
+
+        public async Task<T> UpdateAsync(T entity)
+        {
+            _dbSet.Update(entity);
+            await _dbContext.SaveChangesAsync();
+            return entity;
         }
     }
 }

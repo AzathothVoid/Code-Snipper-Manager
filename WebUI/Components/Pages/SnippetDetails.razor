@@ -1,0 +1,98 @@
+﻿@page "/snippets/{Id:guid}"
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-4">
+    @if (isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (snippet == null)
+    {
+        <MudText>Snippet not found.</MudText>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudText Typo="Typo.h4">@snippet.Title</MudText>
+                <MudText Typo="Typo.caption" Class="mb-2">Language: @snippet.Language • Created @snippet.CreatedAt.ToLocalTime()</MudText>
+                <div>
+                    <pre><code class="language-@snippet.Language">@snippet.Code</code></pre>
+                </div>
+
+                <MudStack Row="true" Class="mt-2">
+                    <MudButton OnClick="CopyCode">Copy</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="Edit">Edit</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="Delete">Delete</MudButton>
+                </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Details</MudText>
+                    <MudList Dense="true" T="string">
+                        <MudListItem>Tags: @((snippet.Tags ?? "-"))</MudListItem>
+                        <MudListItem>Owner: @((snippet.OwnerId ?? "-"))</MudListItem>
+                        <MudListItem>Public: @(snippet.IsPublic ? "Yes" : "No")</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    dynamic? snippet;
+    bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    async Task Load()
+    {
+        isLoading = true;
+        snippet = await Mediator.Send(new GetSnippetDetailsQuery(){Id = Id}); // adapt to your query
+        isLoading = false;
+        await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
+    }
+
+    async Task CopyCode()
+    {
+        if (snippet?.Code is string code)
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
+            Snackbar.Add("Copied to clipboard", Severity.Success);
+        }
+    }
+
+    async Task Edit()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var parameters = new DialogParameters { ["IsEdit"] = true, ["SnippetId"] = (Guid)snippet.Id };
+        var diag = DialogService.Show<SnippetEditorDialog>("Edit Snippet", parameters, options);
+        var res = await diag.Result;
+        if (!res.Cancelled)
+        {
+            Snackbar.Add("Updated", Severity.Success);
+            await Load();
+        }
+    }
+
+    async Task Delete()
+    {
+        var ok = await DialogService.ShowMessageBox("Delete", "Delete this snippet?", yesText:"Delete", cancelText:"Cancel");
+        if (ok == true)
+        {
+            await Mediator.Send(new DeleteSnippetCommand() { Id = Id });
+            Snackbar.Add("Deleted", Severity.Info);
+            Nav.NavigateTo("/snippets");
+        }
+    }
+}

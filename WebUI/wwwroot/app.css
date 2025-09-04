@@ -2,6 +2,18 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+.fab-add {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    z-index: 2000;
+}
+
+.mud-width-sm {
+    max-width: 320px;
+}
+
+
 a, .btn-link {
     color: #006bb7;
 }

@@ -10,9 +10,10 @@ namespace Application.Contracts.Persistence.Common
     {
         Task<T> AddAsync(T entity);
         Task DeleteAsync(T entity);
-        Task<T?> GetByIdAsync(int id);
+        Task<T?> GetByIdAsync(Guid id);
         Task<IReadOnlyList<T>> GetAllAsync();
         Task<T> UpdateAsync(T entity);
-        Task<T> Exists(T entity);
+        Task DeleteAsync(Guid id, CancellationToken ct = default);
+        Task<T> ExistsAsync(T entity);
     }
 }

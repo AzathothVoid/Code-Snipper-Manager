@@ -14,6 +14,5 @@ namespace Application.DTOs.Snippet
         public string Code { get; set; }
         public string? Tags { get;  set; }
         public bool IsPublic { get;  set; }
-        public string? OwnerId { get;  set; }
     }
 }

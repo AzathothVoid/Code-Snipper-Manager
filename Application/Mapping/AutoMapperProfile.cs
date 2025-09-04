@@ -1,6 +1,9 @@
-﻿using AutoMapper;
+﻿using Application.DTOs.Snippet;
+using AutoMapper;
+using Domain.Entities;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +14,9 @@ namespace Application.Mapping
     {
         public AutoMapperProfile()
         {
-            
+            CreateMap<Snippet, SnippetDto>().ReverseMap();
+            CreateMap<Snippet, CreateSnippetDto>().ReverseMap();
+            CreateMap<Snippet, UpdateSnippetDto>().ReverseMap();
         }
     }
 }

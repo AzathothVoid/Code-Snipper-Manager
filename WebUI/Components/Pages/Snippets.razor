@@ -1,0 +1,105 @@
+﻿@page "/snippets"
+@page "/snippets/{SearchQuery}"
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudPaper Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="8">
+            <MudText Typo="Typo.h4">Snippets</MudText>
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex justify-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog">New Snippet</MudButton>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTextField @bind-Value="search" Placeholder="Search title, tags or code..." Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" OnImmediateValueChanged="OnSearchChanged" />
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+
+<MudGrid Gutter="GutterSize.Small">
+    @if (snippets?.Any() ?? false)
+    {
+        @foreach (var s in snippets)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <SnippetCard Snippet="s" OnTogglePublic="TogglePublic" />
+            </MudItem>
+        }
+    }
+    else if (!isLoading)
+    {
+        <MudItem xs="12">
+            <MudPaper Class="pa-6 text-center">
+                <MudText>No snippets found.</MudText>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Parameter] public string? SearchQuery { get; set; }
+
+    List<dynamic>? snippets;
+    bool isLoading = false;
+    string search = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(SearchQuery))
+            search = SearchQuery;
+        await LoadList();
+    }
+
+    async Task LoadList()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var result = await Mediator.Send(new GetSnippetDetailsQuery() { Id = search });
+            snippets = result.Cast<dynamic>().ToList();
+        }
+        else
+        {
+            var result = await Mediator.Send(new GetSnippetListCustomQuery() { Page = 1, PageSize = 24 });
+            snippets = result.Cast<dynamic>().ToList();
+        }
+
+        isLoading = false;
+        await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
+    }
+
+    void OnSearchChanged(string _)
+    {
+        _ = LoadList();
+    }
+
+    async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var diag = DialogService.Show<SnippetEditorDialog>("New Snippet", options);
+        var res = await diag.Result;
+        if (!res.Cancelled)
+        {
+            Snackbar.Add("Snippet created", Severity.Success);
+            await LoadList();
+        }
+    }
+
+    async Task TogglePublic(Guid id)
+    {
+        await Mediator.Send(new TogglePublicCommand(id, true)); // adapt signature
+        Snackbar.Add("Visibility toggled", Severity.Info);
+        await LoadList();
+    }
+}
