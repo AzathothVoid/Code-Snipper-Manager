@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Application.DTOs.Common
+namespace Application.Features.Snippet.Requests.Commands
 {
-    public class BaseDto
+    internal class CreateSnippetCommand
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
     }
 }
