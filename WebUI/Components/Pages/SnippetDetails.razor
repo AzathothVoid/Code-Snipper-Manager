@@ -1,4 +1,4 @@
-﻿@page "/snippets/{Id:guid}"
+﻿@* @page "/snippets/{Id:guid}"
 @inject IMediator Mediator
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -78,7 +78,7 @@
         var parameters = new DialogParameters { ["IsEdit"] = true, ["SnippetId"] = (Guid)snippet.Id };
         var diag = DialogService.Show<SnippetEditorDialog>("Edit Snippet", parameters, options);
         var res = await diag.Result;
-        if (!res.Cancelled)
+        if (res.Data != null)
         {
             Snackbar.Add("Updated", Severity.Success);
             await Load();
@@ -96,3 +96,4 @@
         }
     }
 }
+ *@

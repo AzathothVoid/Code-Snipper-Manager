@@ -7,7 +7,7 @@
 
 <MudDialog>
     <DialogContent>
-        <MudForm @ref="_form" Model="Model" Validated="@(e => { })">
+        <MudForm @ref="_form" Model="Model" >
             <MudText Typo="Typo.h5">@(_isEdit ? "Edit Snippet" : "Create Snippet")</MudText>
 
             <MudTextField Label="Title" @bind-Value="Model.Title" Required="true" For="@(()=>Model.Title)" />
@@ -29,7 +29,7 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public bool IsEdit { get; set; } = false;
-    [Parameter] public Guid? SnippetId { get; set; }
+    [Parameter] public Guid SnippetId { get; set; }
 
     private MudForm? _form;
     private CreateSnippetDto Model = new();
@@ -38,13 +38,13 @@
     protected override async Task OnInitializedAsync()
     {
         _isEdit = IsEdit;
-        if (_isEdit && SnippetId.HasValue)
+        if (_isEdit && SnippetId != null)
         {
-            var data = await Mediator.Send(new GetSnippetDetailsQuery(SnippetId.Value)); // adapt
-            if (data == null) { Snackbar.Add("Snippet not found", Severity.Error); MudDialog.Cancel(); return; }
-
+            var resp = await Mediator.Send(new GetSnippetDetailsQuery() {Id = SnippetId}); // adapt
+            if (resp == null || resp.Data == null) { Snackbar.Add("Snippet not found", Severity.Error); MudDialog.Cancel(); return; }
+            var data = resp.Data;
             // map to create DTO for editing
-            Model = new SnippetCreateDto
+            Model = new CreateSnippetDto
             {
                 Title = data.Title,
                 Description = data.Description,
@@ -61,10 +61,10 @@
     {
         await _form?.Validate();
 
-        if (_isEdit && SnippetId.HasValue)
+        if (_isEdit && SnippetId != null)
         {
             var UpdateModel = AutoMapper.Map<UpdateSnippetDto>(Model);
-            var cmd = new UpdateSnippetCommand() {Id = SnippetId.Value, snippetDto = UpdateModel};
+            var cmd = new UpdateSnippetCommand() {Id = SnippetId, snippetDto = UpdateModel};
             await Mediator.Send(cmd);
             MudDialog.Close(DialogResult.Ok(true));
         }

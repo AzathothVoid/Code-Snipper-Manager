@@ -64,24 +64,51 @@
         isLoading = true;
         StateHasChanged();
 
-        if (!string.IsNullOrWhiteSpace(search))
+        // If search text is a GUID -> load single snippet by Id
+        if (!string.IsNullOrWhiteSpace(search) && Guid.TryParse(search, out var guid))
         {
-            var result = await Mediator.Send(new GetSnippetDetailsQuery() { Id = search });
-            snippets = result.Cast<dynamic>().ToList();
+            var singleRes = await Mediator.Send(new GetSnippetDetailsQuery { Id = guid });
+            if (singleRes != null && singleRes.Success && singleRes.Data != null)
+            {
+                // wrap single result into a list so UI can render it uniformly
+                snippets = new List<dynamic> { singleRes.Data };
+            }
+            else
+            {
+                // no snippet found for that guid
+                snippets = new List<dynamic>();
+                Snackbar.Add(singleRes?.Message ?? "Snippet not found", Severity.Warning);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(search))
+        {
+            // text search
+            var searchRes = await Mediator.Send(new SearchSnippetsQuery { Query = search, Limit = 100 });
+            if (searchRes != null && searchRes.Success && searchRes.Data != null)
+                snippets = searchRes.Data.Cast<dynamic>().ToList();
+            else
+                snippets = new List<dynamic>();
         }
         else
         {
-            var result = await Mediator.Send(new GetSnippetListCustomQuery() { Page = 1, PageSize = 24 });
-            snippets = result.Cast<dynamic>().ToList();
+            // default list
+            var listRes = await Mediator.Send(new GetSnippetListCustomQuery { Page = 1, PageSize = 24 });
+            if (listRes != null && listRes.Success && listRes.Data != null)
+                snippets = listRes.Data.Cast<dynamic>().ToList();
+            else
+                snippets = new List<dynamic>();
         }
 
         isLoading = false;
+
+        // highlight after render on the client; safe to call (no-op server prerender)
         await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
     }
 
-    void OnSearchChanged(string _)
+    async Task OnSearchChanged(string _)
     {
-        _ = LoadList();
+        // immediate refresh (consider debouncing client-side)
+        await LoadList();
     }
 
     async Task OpenCreateDialog()
@@ -89,7 +116,7 @@
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var diag = DialogService.Show<SnippetEditorDialog>("New Snippet", options);
         var res = await diag.Result;
-        if (!res.Cancelled)
+        if (res.Data != null)
         {
             Snackbar.Add("Snippet created", Severity.Success);
             await LoadList();
@@ -98,7 +125,7 @@
 
     async Task TogglePublic(Guid id)
     {
-        await Mediator.Send(new TogglePublicCommand(id, true)); // adapt signature
+        await Mediator.Send(new TogglePublicCommand { Id = id, IsPublic = true }); // adapt if your command ctor is different
         Snackbar.Add("Visibility toggled", Severity.Info);
         await LoadList();
     }
