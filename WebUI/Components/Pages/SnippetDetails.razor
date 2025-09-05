@@ -19,7 +19,7 @@
         <MudGrid>
             <MudItem xs="12" md="8">
                 <MudText Typo="Typo.h4">@snippet.Title</MudText>
-                <MudText Typo="Typo.caption" Class="mb-2">Language: @snippet.Language • Created @snippet.CreatedAt.ToLocalTime()</MudText>
+                <MudText Typo="Typo.caption" Class="mb-2">Language: @snippet.Language • Created @((snippet.CreatedAt is DateTime dt) ? dt.ToLocalTime() : (DateTime?)null)</MudText>
                 <div>
                     <pre><code class="language-@snippet.Language">@snippet.Code</code></pre>
                 </div>
@@ -35,9 +35,9 @@
                 <MudPaper Class="pa-3">
                     <MudText Typo="Typo.subtitle2">Details</MudText>
                     <MudList Dense="true" T="string">
-                        <MudListItem>Tags: @((snippet.Tags ?? "-"))</MudListItem>
-                        <MudListItem>Owner: @((snippet.OwnerId ?? "-"))</MudListItem>
-                        <MudListItem>Public: @(snippet.IsPublic ? "Yes" : "No")</MudListItem>
+                        <MudListItem>Tags: @((snippet?.Tags ?? "-"))</MudListItem>
+                        <MudListItem>Owner: @((snippet?.OwnerId ?? "-"))</MudListItem>
+                        <MudListItem>Public: @(snippet?.IsPublic == true ? "Yes" : "No")</MudListItem>
                     </MudList>
                 </MudPaper>
             </MudItem>
@@ -47,10 +47,13 @@
 
 @code {
     [Parameter] public Guid Id { get; set; }
-    dynamic? snippet;
-    bool isLoading = true;
 
-    protected override async Task OnInitializedAsync()
+    // keep dynamic if you must; consider replacing with SnippetDto for compile-time checks
+    dynamic? snippet;
+    bool isLoading = false;
+
+    // Run whenever route parameters change (covers SPA navigation)
+    protected override async Task OnParametersSetAsync()
     {
         await Load();
     }
@@ -58,27 +61,80 @@
     async Task Load()
     {
         isLoading = true;
-        var res = await Mediator.Send(new GetSnippetDetailsQuery(){Id = Id}); 
-        snippet = res.Data;
-        await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
+        StateHasChanged();
+
+        try
+        {
+            var res = await Mediator.Send(new GetSnippetDetailsQuery() { Id = Id });
+
+            // handle null/failed responses gracefully
+            if (res == null || (res is { Success: false } && res.Data == null))
+            {
+                snippet = null;
+                Snackbar.Add(res?.Message ?? "Snippet not found", Severity.Warning);
+                return;
+            }
+
+            // if your response type uses Success/Data
+            snippet = (res.Data != null) ? res.Data : null;
+
+            // try to highlight — safe guard for prerendering
+            try
+            {
+                await JS.InvokeVoidAsync("hljs && hljs.highlightAll");
+            }
+            catch (InvalidOperationException)
+            {
+                // JS interop not available during prerender — ignore, will re-run after client connects
+            }
+            catch (Exception jsEx)
+            {
+                // Log or ignore; highlighting failure should not break the page
+                Console.WriteLine("hljs highlight failed: " + jsEx.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            snippet = null;
+            Console.WriteLine("Load snippet failed: " + ex);
+            Snackbar.Add("Error loading snippet: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     async Task CopyCode()
     {
         if (snippet?.Code is string code)
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
-            Snackbar.Add("Copied to clipboard", Severity.Success);
+            try
+            {
+                await JS.InvokeVoidAsync("navigator.clipboard.writeText", code);
+                Snackbar.Add("Copied to clipboard", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Clipboard failed: " + ex.Message, Severity.Error);
+            }
         }
     }
 
     async Task Edit()
     {
+        if (snippet?.Id == null)
+        {
+            Snackbar.Add("Snippet id missing", Severity.Error);
+            return;
+        }
+
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var parameters = new DialogParameters { ["IsEdit"] = true, ["SnippetId"] = (Guid)snippet.Id };
         var diag = DialogService.Show<SnippetEditorDialog>("Edit Snippet", parameters, options);
         var res = await diag.Result;
-        if (res.Data != null)
+        if (res?.Data != null)
         {
             Snackbar.Add("Updated", Severity.Success);
             await Load();
@@ -87,7 +143,7 @@
 
     async Task Delete()
     {
-        var ok = await DialogService.ShowMessageBox("Delete", "Delete this snippet?", yesText:"Delete", cancelText:"Cancel");
+        var ok = await DialogService.ShowMessageBox("Delete", "Delete this snippet?", yesText: "Delete", cancelText: "Cancel");
         if (ok == true)
         {
             await Mediator.Send(new DeleteSnippetCommand() { Id = Id });

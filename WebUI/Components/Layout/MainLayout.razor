@@ -1,26 +1,89 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject NavigationManager Nav
 
 <MudLayout>
     <MudThemeProvider />
     <MudPopoverProvider />
     <MudDialogProvider />
     <MudSnackbarProvider />
-
-    <MudAppBar Elevation="1" Dense="true">
-        <MudContainer Class="d-flex align-center"> 
-            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+    <!-- Side drawer (collapsible) -->
+    <MudDrawer @bind-Open="_drawerOpen"
+               Elevation="1"
+               Anchor="Anchor.Start"
+               Variant="DrawerVariant.Temporary"
+               ClipMode="DrawerClipMode.Never"
+               Class="scm-main-drawer">
+        <MudDrawerHeader>
             <MudText Typo="Typo.h6" Class="ml-2">Snippet Manager</MudText>
-        </MudContainer>       
+        </MudDrawerHeader>
+
+        <MudNavMenu>
+
+            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All">
+                Home
+            </MudNavLink>
+
+            <MudNavLink Href="/snippets" Icon="@Icons.Material.Filled.Code" Match="NavLinkMatch.Prefix">
+                Snippets
+            </MudNavLink>
+
+            <MudNavLink Href="/about" Icon="@Icons.Material.Filled.Info" Match="NavLinkMatch.Prefix">
+                About
+            </MudNavLink>
+
+        </MudNavMenu>
+
+        <div class="scm-drawer-footer">
+            <MudText Typo="Typo.caption" Class="ml-3">v1.0 • lightweight</MudText>
+        </div>
+    </MudDrawer>
+
+    <!-- Top app bar -->
+    <MudAppBar Elevation="1" Dense="true">
+        <MudContainer Class="d-flex align-center">
+            <!-- toggle drawer -->
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="ToggleDrawer" AriaLabel="Togglemenu" />
+            <MudText Typo="Typo.h6" Class="ml-2 d-none d-sm-inline">Snippet Manager</MudText>
+
+            <MudSpacer />
+        </MudContainer>
     </MudAppBar>
 
+    <!-- main content -->
     <MudMainContent>
-        <div class="mud-container">
-            <div class="mud-grid">
-                @Body
-            </div>
-        </div>
+            @Body
     </MudMainContent>
+
 </MudLayout>
+
+@code {
+    bool _drawerOpen = false;
+
+    void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    protected override void OnInitialized()
+    {
+        // Close drawer when the route changes (useful for mobile)
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_drawerOpen)
+        {
+            _drawerOpen = false;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}
 

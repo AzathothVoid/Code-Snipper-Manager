@@ -17,6 +17,7 @@ namespace Application.Mapping
             CreateMap<Snippet, SnippetDto>().ReverseMap();
             CreateMap<Snippet, CreateSnippetDto>().ReverseMap();
             CreateMap<Snippet, UpdateSnippetDto>().ReverseMap();
+            CreateMap<CreateSnippetDto, UpdateSnippetDto>().ReverseMap();
         }
     }
 }
