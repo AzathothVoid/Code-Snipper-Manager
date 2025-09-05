@@ -1,43 +1,151 @@
 ﻿@using System.Text.RegularExpressions
 @inject NavigationManager Nav
 
-<MudCard Class="h-100">
-    <MudCardHeader>
-        <MudText Typo="Typo.h6">@Snippet.Title</MudText>
-        <MudChip T="string" Class="ml-2" Color="Color.Primary" Variant="Variant.Outlined">@Snippet.Language</MudChip>
-    </MudCardHeader>
-    <MudCardContent>
-        <div style="max-height:120px; overflow:auto;">
-            <pre><code class="language-@Snippet.Language">@SnippetPreview</code></pre>
+<MudCard Class="h-100 snippet-card" Elevation="6">
+    <!-- plain div media container (do not use MudCardMedia here) -->
+    <div class="card-media">
+        <img src="@currentImageUrl"
+             alt="snippet image"
+             @onerror="OnImageError"
+             @onload="OnImageLoaded" />
+
+        <div class="media-overlay">
+            <MudChip T="string" Class="language-chip" Color="@GetLanguageColor(Snippet?.Language?.ToString())" Variant="Variant.Filled">
+                @Snippet?.Language
+            </MudChip>
         </div>
-        <div class="mt-2">
-            @if (!string.IsNullOrEmpty(Snippet.Tags))
+
+        <!-- optional debug (remove if you don't need it) -->
+        <div class="image-debug" title="@currentImageUrl">
+            <span class="status">@imageStatus</span>
+        </div>
+    </div>
+
+    <MudCardHeader>
+        <MudAvatar Size="Size.Medium" Class="mr-2" Color="@GetLanguageColor(Snippet?.Language?.ToString())">@GetAvatarText(Snippet?.Language)</MudAvatar>
+        <div class="card-title-wrap">
+            <MudText Typo="Typo.h6" Class="card-title">@Snippet?.Title</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@((Snippet?.CreatedAt is DateTime dt) ? dt.ToLocalTime().ToString("yyyy-MM-dd") : "")</MudText>
+        </div>
+    </MudCardHeader>
+
+    <MudCardContent>
+        <div style="max-height:140px; overflow:auto;">
+            <pre style="margin:0;"><code class="language-@Snippet?.Language">@SnippetPreview</code></pre>
+        </div>
+
+        <div class="mt-2 tag-wrap">
+            @if (!string.IsNullOrEmpty(Snippet?.Tags?.ToString()))
             {
-                foreach (var t in Snippet.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (var t in (Snippet.Tags as string).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     <MudChip Class="mr-1 mt-1" T="string" Color="Color.Info" Size="Size.Small">@t</MudChip>
                 }
             }
         </div>
     </MudCardContent>
+
     <MudCardActions>
-        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>Nav.NavigateTo($"/snippets/{Snippet.Id}"))">Open</MudButton>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>Nav.NavigateTo($"/snippets/{Snippet.Id}"))" StartIcon="@Icons.Material.Filled.OpenInNew">Open</MudButton>
+
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.Public" Color="@(Snippet.IsPublic ? Color.Success : Color.Default)" OnClick="TogglePublic" />
+
+        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" OnClick="CopySnippet" Title="Copy code" />
+        <MudIconButton Icon="@Icons.Material.Filled.Public" Color="@(Snippet?.IsPublic == true ? Color.Success : Color.Default)" OnClick="TogglePublic" />
     </MudCardActions>
 </MudCard>
 
 @code {
-    [Parameter] public dynamic Snippet { get; set; } = null!; // accept domain DTO or SnippetDto
+    [Parameter] public dynamic Snippet { get; set; } = null!;
     [Parameter] public EventCallback<Guid> OnTogglePublic { get; set; }
 
-    string SnippetPreview => 
+    private string currentImageUrl = "";
+    private string imageStatus = "idle"; // idle | loading | loaded | error | fallback
+    private readonly string fallbackDataUri = BuildFallbackSvgDataUri();
+
+    protected override void OnParametersSet()
+    {
+        currentImageUrl = BuildImageUrl();
+        imageStatus = "loading";
+        // Log to console for debugging
+        _ = JSRuntime.InvokeVoidAsync("console.log", $"SnippetCard: loading image {currentImageUrl}");
+    }
+
+    string BuildImageUrl()
+    {
+        var seedRaw = Snippet?.Id?.ToString() ?? Snippet?.Title?.ToString() ?? Guid.NewGuid().ToString();
+        var seed = Regex.Replace(seedRaw, "[^a-zA-Z0-9]", "");
+        return $"https://picsum.photos/seed/{seed}/800/300";
+    }
+
+    void OnImageError()
+    {
+        imageStatus = "error";
+        // fallback to embedded SVG
+        currentImageUrl = fallbackDataUri;
+        imageStatus = "fallback";
+        StateHasChanged();
+    }
+
+    void OnImageLoaded()
+    {
+        imageStatus = "loaded";
+        StateHasChanged();
+    }
+
+    string SnippetPreview =>
         (Snippet?.Code as string) is string code ? (code.Length > 300 ? code.Substring(0, 300) + "…" : code) : "";
+
+    string GetAvatarText(object? lang)
+    {
+        var s = lang?.ToString() ?? "txt";
+        return s.Length >= 2 ? s.Substring(0, 2).ToUpperInvariant() : s.ToUpperInvariant();
+    }
+
+    Color GetLanguageColor(object? langObj)
+    {
+        var lang = (langObj ?? "text").ToString().ToLowerInvariant();
+        return lang switch
+        {
+            "csharp" or "c#" => Color.Primary,
+            "javascript" or "js" => Color.Warning,
+            "typescript" => Color.Info,
+            "python" => Color.Secondary,
+            "html" => Color.Error,
+            "css" => Color.Info,
+            "sql" => Color.Default,
+            _ => Color.Default
+        };
+    }
 
     async Task TogglePublic()
     {
         if (Snippet?.Id is Guid id)
             await OnTogglePublic.InvokeAsync(id);
     }
-}
 
+    async Task CopySnippet()
+    {
+        if (Snippet?.Code is string code)
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", code);
+    }
+
+    [Inject] IJSRuntime JSRuntime { get; set; } = default!;
+
+    private static string BuildFallbackSvgDataUri()
+    {
+        var svg = @"
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='300' viewBox='0 0 800 300'>
+  <defs>
+    <linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+      <stop offset='0' stop-color='#eef2ff' />
+      <stop offset='1' stop-color='#ffffff' />
+    </linearGradient>
+  </defs>
+  <rect width='100%' height='100%' fill='url(#g)' />
+  <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#94a3b8' font-family='Segoe UI, Roboto, Arial' font-size='20'>No image</text>
+</svg>";
+        var encoded = Uri.EscapeDataString(svg);
+        return $"data:image/svg+xml;utf8,{encoded}";
+    }
+}

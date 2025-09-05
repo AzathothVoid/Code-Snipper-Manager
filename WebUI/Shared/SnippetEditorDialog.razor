@@ -5,23 +5,48 @@
 @inject IJSRuntime JS
 @inherits MudComponentBase
 
-<MudDialog>
+<MudDialog MaxWidth="MaxWidth.Large">
     <DialogContent>
-        <MudForm @ref="_form" Model="Model" >
+        <div class="dialog-header">
             <MudText Typo="Typo.h5">@(_isEdit ? "Edit Snippet" : "Create Snippet")</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Pro tip: add tags to make snippets later searchable.</MudText>
+        </div>
 
-            <MudTextField Label="Title" @bind-Value="Model.Title" Required="true" For="@(()=>Model.Title)" />
-            <MudTextField Label="Language" @bind-Value="Model.Language" HelperText="e.g. csharp, javascript" />
-            <MudTextField Label="Tags" @bind-Value="Model.Tags" HelperText="comma-separated" />
-            <MudTextField Label="Description" @bind-Value="Model.Description" Lines="3" />
+        <MudForm @ref="_form" Model="Model" Class="mt-3">
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudTextField T="string" Label="Title" Value="@Model.Title" ValueChanged="@(v => Model.Title = v)" Required="true" />
+                </MudItem>
 
-            <MudText Typo="Typo.subtitle2" Class="mt-2">Code</MudText>
-            <MudTextField T="string" @bind-Value="Model.Code" Lines="12" TextWrapping="TextWrapping.NoWrap" Placeholder="// paste code here" />
+                 <MudItem xs="12" md="4">
+                    <MudSelect T="string" Label="Language" @bind-Value="Model.Language" 
+                               Dense="true" Clearable="true"  Required="true" ToStringFunc="@(val => string.IsNullOrEmpty(val) || val == "text" ? "Select a language..." : val)">
+                        @foreach (var lang in _languages)
+                        {
+                            <MudSelectItem T="string" Value="@lang">@lang</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
 
-            <MudStack Row="true" Class="mt-3">
+
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Tags" Value="@Model.Tags" ValueChanged="@(v => Model.Tags = v)" HelperText="comma-separated keywords" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Description" Value="@Model.Description" ValueChanged="@(v => Model.Description = v)" Lines="3" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Code</MudText>
+                    <MudTextField T="string" Value="@Model.Code" ValueChanged="@(v => Model.Code = v)" Lines="12" TextWrapping="TextWrapping.NoWrap" Placeholder="// paste your code here" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="mt-4 d-flex justify-end">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSubmit">Save</MudButton>
-                <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
-            </MudStack>
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="ml-2">Cancel</MudButton>
+            </div>
         </MudForm>
     </DialogContent>
 </MudDialog>
@@ -31,6 +56,21 @@
     [Parameter] public bool IsEdit { get; set; } = false;
     [Parameter] public Guid SnippetId { get; set; }
 
+    private readonly List<string> _languages = new()
+    {
+        "csharp",
+        "javascript",
+        "typescript",
+        "python",
+        "java",
+        "cpp",
+        "go",
+        "php",
+        "ruby",
+        "rust",
+        "other"
+    };
+
     private MudForm? _form;
     private CreateSnippetDto Model = new();
     private bool _isEdit = false;
@@ -38,12 +78,11 @@
     protected override async Task OnInitializedAsync()
     {
         _isEdit = IsEdit;
-        if (_isEdit && SnippetId != null)
+        if (_isEdit && SnippetId != Guid.Empty)
         {
-            var resp = await Mediator.Send(new GetSnippetDetailsQuery() {Id = SnippetId}); // adapt
+            var resp = await Mediator.Send(new GetSnippetDetailsQuery() { Id = SnippetId });
             if (resp == null || resp.Data == null) { Snackbar.Add("Snippet not found", Severity.Error); MudDialog.Cancel(); return; }
             var data = resp.Data;
-            // map to create DTO for editing
             Model = new CreateSnippetDto
             {
                 Title = data.Title,
@@ -61,17 +100,22 @@
     {
         await _form?.Validate();
 
-        if (_isEdit && SnippetId != null)
+        if (_isEdit && SnippetId != Guid.Empty)
         {
             var UpdateModel = AutoMapper.Map<UpdateSnippetDto>(Model);
-            var cmd = new UpdateSnippetCommand() {Id = SnippetId, snippetDto = UpdateModel};
-            await Mediator.Send(cmd);
+            var cmd = new UpdateSnippetCommand() { Id = SnippetId, snippetDto = UpdateModel };
+            var res = await Mediator.Send(cmd);
+            if (!res.Success) { Snackbar.Add(res.Message ?? "Update failed", Severity.Error); return; }
             MudDialog.Close(DialogResult.Ok(true));
         }
         else
         {
-            var cmd = new CreateSnippetCommand(){snippetDto = Model};
-            await Mediator.Send(cmd);
+            var cmd = new CreateSnippetCommand() { snippetDto = Model };
+            var res = await Mediator.Send(cmd);
+            if (!res.Success) { 
+                Snackbar.Add(res.Errors ?? "Create failed", Severity.Error); 
+                return; 
+            }
             MudDialog.Close(DialogResult.Ok(true));
         }
     }

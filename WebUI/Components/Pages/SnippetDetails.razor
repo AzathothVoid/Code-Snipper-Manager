@@ -58,8 +58,8 @@
     async Task Load()
     {
         isLoading = true;
-        snippet = await Mediator.Send(new GetSnippetDetailsQuery(){Id = Id}); // adapt to your query
-        isLoading = false;
+        var res = await Mediator.Send(new GetSnippetDetailsQuery(){Id = Id}); 
+        snippet = res.Data;
         await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
     }
 

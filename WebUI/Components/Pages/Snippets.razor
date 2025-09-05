@@ -1,61 +1,131 @@
 ﻿@page "/snippets"
-@page "/snippets/{SearchQuery}"
 @inject IMediator Mediator
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
-<MudPaper Class="pa-4 mb-4">
-    <MudGrid>
-        <MudItem xs="12" sm="8">
-            <MudText Typo="Typo.h4">Snippets</MudText>
-        </MudItem>
-        <MudItem xs="12" sm="4" Class="d-flex justify-end">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog">New Snippet</MudButton>
-        </MudItem>
+<MudContainer MaxWidth="MaxWidth.False" Class="snippets-page pb-8">
 
-        <MudItem xs="12">
-            <MudTextField @bind-Value="search" Placeholder="Search title, tags or code..." Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" OnImmediateValueChanged="OnSearchChanged" />
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+    <!-- HERO -->
+    <MudPaper Class="hero pa-6 mb-6" Elevation="0">
+        <div class="hero-inner">
+            <div class="hero-left">
+                <MudText Typo="Typo.h4" Class="hero-title">Code Snippets</MudText>
+                <MudText Typo="Typo.subtitle1" Class="hero-sub">Collect, search and share useful code snippets — lightweight and searchable.</MudText>
 
-@if (isLoading)
-{
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-}
+                <MudStack Row="true" Spacing="2" Class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog" StartIcon="@Icons.Material.Filled.Add">New Snippet</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@Refresh" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
+                </MudStack>
+            </div>
 
-<MudGrid Gutter="GutterSize.Small">
-    @if (snippets?.Any() ?? false)
-    {
-        @foreach (var s in snippets)
-        {
-            <MudItem xs="12" sm="6" md="4">
-                <SnippetCard Snippet="s" OnTogglePublic="TogglePublic" />
+            <div class="hero-right">
+                <MudPaper Class="pa-3 stat-card" Elevation="1">
+                    <MudText Typo="Typo.caption">Showing</MudText>
+                    <MudText Typo="Typo.h6">@((snippets?.Count ?? 0).ToString())</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Snippets</MudText>
+                </MudPaper>
+
+                <img class="hero-illustration" src="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=800&auto=format&fit=crop&crop=faces" alt="code illustration" />
+            </div>
+        </div>
+    </MudPaper>
+
+    <!-- FILTERS -->
+    <MudPaper Class="pa-4 mb-4" Elevation="0">
+        <MudGrid AlignItems="Center">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Value="@search"
+                              ValueChanged="@( (string v) => search = v )"
+                              Immediate="true"
+                              Placeholder="Search title, tags or code..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              OnImmediateValueChanged="OnSearchChanged"
+                              Class="search-field" />
             </MudItem>
-        }
-    }
-    else if (!isLoading)
+
+            <MudItem xs="12" md="6" Class="d-flex justify-end align-center">
+                <MudSelect T="string" @bind-Value="selectedLanguage" Label="Filter by language" Dense="true" Clearable="true" Class="mr-2" OnBlur="@( () => Refresh())" ToStringFunc="@(val => string.IsNullOrEmpty(val) || val == "text" ? "Select a language" : val)">
+                    @foreach (var l in languages)
+                    {
+                        <MudSelectItem Value="@l">@l</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        <div class="language-chips mt-3">
+            @foreach (var l in languages)
+            {
+                <MudChip T="string"
+                         Clickable="true"
+                         OnClick="@(() => SetLanguageFilter(l))"
+                         Color="@(selectedLanguage == l ? Color.Primary : Color.Default)"
+                         Variant="@(selectedLanguage == l ? Variant.Filled : Variant.Outlined)"
+                         Class="chip-sm">
+                    @l
+                </MudChip>
+            }
+        </div>
+    </MudPaper>
+
+    <!-- LIST / SKELETONS -->
+    @if (isLoading)
     {
-        <MudItem xs="12">
-            <MudPaper Class="pa-6 text-center">
-                <MudText>No snippets found.</MudText>
-            </MudPaper>
-        </MudItem>
+        <MudGrid Gutter="GutterSize.Small">
+            @for (int i = 0; i < 6; i++)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudPaper Class="pa-4 skeleton-card">
+                        <MudSkeleton Height="20px" Width="60%" />
+                        <MudSkeleton Height="12px" Width="40%" Class="mt-2" />
+                        <MudSkeleton Height="140px" Class="mt-3" />
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
     }
-</MudGrid>
+    else
+    {
+        <MudGrid Gutter="GutterSize.Small" Class="mt-2">
+            @if (snippets?.Any() ?? false)
+            {
+                @foreach (var s in snippets)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <div class="card-wrap">
+                            <SnippetCard Snippet="s" OnTogglePublic="TogglePublic" />
+                        </div>
+                    </MudItem>
+                }
+            }
+            else
+            {
+                <MudItem xs="12">
+                    <MudPaper Class="pa-6 text-center empty-state">
+                        <img src="https://images.unsplash.com/photo-1526378721775-3f4349f4d0d3?q=80&w=800&auto=format&fit=crop" alt="empty" class="empty-illustration" />
+                        <MudText Typo="Typo.h6" Class="mt-2">No snippets found</MudText>
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary mb-4">Try a different search or create a new snippet.</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OpenCreateDialog">Create first snippet</MudButton>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
 
 @code {
-    [Parameter] public string? SearchQuery { get; set; }
-
     List<dynamic>? snippets;
     bool isLoading = false;
     string search = "";
+    string selectedLanguage = "";
+    string[] languages = new[] {"csharp", "javascript", "python", "html", "css", "sql", "text" };
 
     protected override async Task OnInitializedAsync()
     {
-        if (!string.IsNullOrWhiteSpace(SearchQuery))
-            search = SearchQuery;
         await LoadList();
     }
 
@@ -64,50 +134,35 @@
         isLoading = true;
         StateHasChanged();
 
-        // If search text is a GUID -> load single snippet by Id
+        // simple filtering by selectedLanguage + search text
         if (!string.IsNullOrWhiteSpace(search) && Guid.TryParse(search, out var guid))
         {
             var singleRes = await Mediator.Send(new GetSnippetDetailsQuery { Id = guid });
-            if (singleRes != null && singleRes.Success && singleRes.Data != null)
-            {
-                // wrap single result into a list so UI can render it uniformly
-                snippets = new List<dynamic> { singleRes.Data };
-            }
-            else
-            {
-                // no snippet found for that guid
-                snippets = new List<dynamic>();
-                Snackbar.Add(singleRes?.Message ?? "Snippet not found", Severity.Warning);
-            }
+            snippets = (singleRes != null && singleRes.Success && singleRes.Data != null)
+                ? new List<dynamic> { singleRes.Data }
+                : new List<dynamic>();
         }
         else if (!string.IsNullOrWhiteSpace(search))
         {
-            // text search
             var searchRes = await Mediator.Send(new SearchSnippetsQuery { Query = search, Limit = 100 });
-            if (searchRes != null && searchRes.Success && searchRes.Data != null)
-                snippets = searchRes.Data.Cast<dynamic>().ToList();
-            else
-                snippets = new List<dynamic>();
+            snippets = searchRes?.Data?.Cast<dynamic>().ToList() ?? new List<dynamic>();
         }
         else
         {
-            // default list
             var listRes = await Mediator.Send(new GetSnippetListCustomQuery { Page = 1, PageSize = 24 });
-            if (listRes != null && listRes.Success && listRes.Data != null)
-                snippets = listRes.Data.Cast<dynamic>().ToList();
-            else
-                snippets = new List<dynamic>();
+            snippets = listRes?.Data?.Cast<dynamic>().ToList() ?? new List<dynamic>();
         }
 
-        isLoading = false;
+        // server-side filter by language (simpler than extra query)
+        if (!string.IsNullOrWhiteSpace(selectedLanguage) && snippets.Any() && !string.Equals(selectedLanguage, "all"))
+            snippets = snippets.Where(s => string.Equals((s.Language ?? "text"), selectedLanguage, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        // highlight after render on the client; safe to call (no-op server prerender)
-        await InvokeAsync(() => JS.InvokeVoidAsync("hljs.highlightAll"));
+        isLoading = false;
+        await InvokeAsync(() => JS.InvokeVoidAsync("hljs && hljs.highlightAll"));
     }
 
-    async Task OnSearchChanged(string _)
+    async Task OnSearchChanged(string _value)
     {
-        // immediate refresh (consider debouncing client-side)
         await LoadList();
     }
 
@@ -116,16 +171,25 @@
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var diag = DialogService.Show<SnippetEditorDialog>("New Snippet", options);
         var res = await diag.Result;
-        if (res.Data != null)
+        if (res?.Data != null)
         {
             Snackbar.Add("Snippet created", Severity.Success);
             await LoadList();
         }
     }
 
+    async Task Refresh() => await LoadList();
+
+    void SetLanguageFilter(string lang)
+    {
+        if (selectedLanguage == lang) selectedLanguage = "";
+        else selectedLanguage = lang;
+        _ = LoadList();
+    }
+
     async Task TogglePublic(Guid id)
     {
-        await Mediator.Send(new TogglePublicCommand { Id = id, IsPublic = true }); // adapt if your command ctor is different
+        await Mediator.Send(new TogglePublicCommand { Id = id, IsPublic = true });
         Snackbar.Add("Visibility toggled", Severity.Info);
         await LoadList();
     }

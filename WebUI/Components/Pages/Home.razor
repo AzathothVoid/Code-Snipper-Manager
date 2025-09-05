@@ -1,0 +1,78 @@
+﻿@page "/"
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<!-- MODERN HERO (full viewport) -->
+<MudContainer MaxWidth="MaxWidth.False" Class="landing-hero modern-hero pa-0">
+    <div class="hero-bg" role="img" aria-label="coding background">
+        <div class="hero-overlay"></div>
+
+        <div class="hero-content">
+            <!-- LEFT: headline + features -->
+            <div class="hero-left">
+                <MudText Typo="Typo.h2" Class="hero-title">
+                    Save your <span class="accent">best</span> code — always at hand.
+                </MudText>
+                <MudText Typo="Typo.h6" Class="hero-sub">
+                    Snippet Manager helps you collect, tag and share the tiny pieces of brilliance you keep reusing.
+                </MudText>
+
+                <div class="hero-ctas mt-6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                               OnClick="@(()=>Nav.NavigateTo("/snippets"))" StartIcon="@Icons.Material.Filled.Code">
+                        Get started
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large"
+                               OnClick="@(()=>Nav.NavigateTo("/about"))" Class="ml-2">
+                        Learn more
+                    </MudButton>
+                </div>
+
+                <div class="hero-features mt-6">
+                    <MudGrid Gutter="GutterSize.Small">
+                        <MudItem xs="12" sm="6">
+                            <div class="feature">
+                                <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Medium" />
+                                <div>
+                                    <div class="feature-title">Powerful search</div>
+                                    <div class="feature-sub">Find snippets by title, tag or code.</div>
+                                </div>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <div class="feature">
+                                <MudIcon Icon="@Icons.Material.Filled.Label" Size="Size.Medium" />
+                                <div>
+                                    <div class="feature-title">Smart tagging</div>
+                                    <div class="feature-sub">Organize snippets with flexible tags.</div>
+                                </div>
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                </div>
+            </div>
+
+            <!-- RIGHT: collage + mockup -->
+            <div class="right-collage">
+                <div class="mockup-overlay">
+                    <div class="mockup-top">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                    </div>
+
+                    <pre class="mockup-code"><code>
+public static void Hello()
+{
+Console.WriteLine("Hello, snippets!");
+}</code></pre>
+
+                    <div class="mockup-footer">
+                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Class="mr-2">csharp</MudChip>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Updated 2 days ago</MudText>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</MudContainer>

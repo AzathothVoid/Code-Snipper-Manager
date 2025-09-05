@@ -1,4 +1,5 @@
 ﻿using Application.DTOs.Common;
+using Domain.Entities.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Application.DTOs.Snippet
 {
-    public class SnippetDto : BaseDto, ISnippetDto
+    public class SnippetDto : AuditableBaseEntity, ISnippetDto
     {
         public string Title { get; set; } = "";
         public string? Description { get; set; }

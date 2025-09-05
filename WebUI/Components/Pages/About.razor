@@ -1,0 +1,64 @@
+﻿@page "/about"
+@inject NavigationManager Nav
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-6 mb-6 about-hero">
+    <MudGrid AlignItems="Center" Justify="Justify.SpaceBetween">
+        <MudItem xs="12" md="7">
+            <MudText Typo="Typo.h4">About Snippet Manager</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mb-3">A tiny, focused tool to save, organize and share code snippets — built for developers who value speed and simplicity.</MudText>
+
+            <MudText Typo="Typo.body1" Class="mb-3">
+                The app started as a personal productivity tool and evolved into a small, sharable knowledge base. Snippets are compact, searchable and easy to reuse.
+            </MudText>
+
+            <MudList T="MudIcon" Dense="true">
+                <MudListItem>
+                    <MudIcon Icon="@Icons.Material.Filled.Bolt" /> <span class="ml-2">Fast to use</span>
+                </MudListItem>
+                <MudListItem>
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" /> <span class="ml-2">Private by default</span>
+                </MudListItem>
+                <MudListItem>
+                    <MudIcon Icon="@Icons.Material.Filled.Group" /> <span class="ml-2">Share with teammates</span>
+                </MudListItem>
+            </MudList>
+
+            <div class="mt-4">
+                <MudButton Variant="Variant.Outlined" OnClick="@(()=>Nav.NavigateTo("/snippets"))">Browse snippets</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-2" OnClick="@(()=>Nav.NavigateTo("/"))">Back home</MudButton>
+            </div>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4 team-card">
+                <MudText Typo="Typo.subtitle2">The idea</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Built with simplicity and speed in mind. No bloat — just snippets.</MudText>
+
+                <MudDivider Class="my-3" />
+
+                <MudText Typo="Typo.subtitle2">Contact</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">dev@yourdomain.com</MudText>
+
+                <MudDivider Class="my-3" />
+
+                <MudText Typo="Typo.subtitle2">Tech</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">.NET + Blazor + MudBlazor + EF Core</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mb-8">
+    <MudText Typo="Typo.h6" Class="mb-2">Roadmap</MudText>
+    <MudExpansionPanels>
+        <MudExpansionPanel Text="Share & permissions">
+            Add team sharing, per-snippet permissions and role-based access.
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="Editor improvements">
+            Richer editor, syntax highlighting on edit and snippet versioning.
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="Import/Export">
+            Import from Gists, export collections, and bulk upload.
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+</MudContainer>
